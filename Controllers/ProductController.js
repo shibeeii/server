@@ -1,22 +1,22 @@
 const Products = require("../Models/ProductModel");
 
 
-exports.Addproducts = async(req,res)=>{
+exports.Addproducts = async (req, res) => {
+  const { productname, category, description, price, offer, image, topProduct } = req.body;
 
-  const {productname, category,description,price,offer,image}=req.body
-  // creating product
-  const products= await Products.create({
-      productname,
-      category,
-      description,
-      price,
-      offer,
-      image
+  const products = await Products.create({
+    productname,
+    category,
+    description,
+    price,
+    offer,
+    image,
+    topProduct, // ✅
   });
 
-  // respond with the product
-  res.json({products:products})
-}
+  res.json({ products });
+};
+
 
 exports.getAllProducts = async (req, res) => {
   try {
@@ -116,3 +116,12 @@ res.json({ products, total });
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+exports.getTopProducts = async (req, res) => {
+  try {
+    const topProducts = await Products.find({ topProduct: true });
+    res.json(topProducts);
+  } catch (err) {
+    res.status(500).json({ message: "Failed to fetch top products" });
+  }
+};
+

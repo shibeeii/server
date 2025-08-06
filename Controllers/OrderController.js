@@ -4,13 +4,20 @@ exports.getAllOrders = async (req, res) => {
   try {
     const orders = await Order.find()
       .populate("userId", "name email")
+      .populate({
+        path: "items.productId",
+        model: "products", 
+        select: "productname price image",
+      })
       .sort({ createdAt: -1 });
+
     res.json(orders);
   } catch (err) {
     console.error("Error fetching orders:", err);
     res.status(500).json({ error: "Failed to fetch orders" });
   }
 };
+
 exports.createOrder = async (req, res) => {
   try {
     const newOrder = new Order(req.body);

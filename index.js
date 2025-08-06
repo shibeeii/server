@@ -25,6 +25,8 @@ const AuthController = require('./Controllers/UserController')
 const WishlistController = require('./Controllers/WishlistController')
 const PaymentController = require('./Controllers/PaymentController');
 const OrderController = require("./Controllers/OrderController");
+const TestimonialController = require('./Controllers/TestimonialController');
+
 
 
 
@@ -89,6 +91,9 @@ commerce.put("/orders/:orderId/cancel", OrderController.cancelOrder);
 commerce.delete("/orders/:orderId", OrderController.deleteOrder);
 
 
+// testimonials
+commerce.post('/testimonials', TestimonialController.AddNewTestimonial);
+commerce.get('/testimonials', TestimonialController.GetAllTestimonial);
 
 
 

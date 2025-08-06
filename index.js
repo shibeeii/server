@@ -98,6 +98,7 @@ commerce.delete("/orders/:orderId", OrderController.deleteOrder);
 // testimonials
 commerce.post('/testimonials', TestimonialController.AddNewTestiminal);
 commerce.get('/testimonials', TestimonialController.GetAllTestimonial);
+commerce.delete("/testimonials/:id", TestimonialController.DeleteTestimonial);
 
 
 

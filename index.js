@@ -42,6 +42,8 @@ commerce.post("/products",AddController.Addproducts)
 
 //get products
 commerce.get('/products', AddController.getAllProducts);
+// get top products
+commerce.get("/products/top", AddController.getTopProducts);
 
 // view single by id
 commerce.get('/products/:id', AddController.getProductById);
@@ -49,8 +51,7 @@ commerce.get('/products/:id', AddController.getProductById);
 commerce.delete('/products/:id', AddController.deleteProduct);
 // update
 commerce.put('/products/:id', AddController.updateProduct);
-// get top products
-commerce.get("/products/top", AddController.getTopProducts);
+
 
 
 

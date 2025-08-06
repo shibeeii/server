@@ -121,7 +121,8 @@ exports.getTopProducts = async (req, res) => {
     const topProducts = await Products.find({ topProduct: true });
     res.json(topProducts);
   } catch (err) {
-    res.status(500).json({ message: "Failed to fetch top products" });
+    console.error("Error fetching top products:", err);
+    res.status(500).json({ message: "Failed to fetch top products", error: err.message });
   }
 };
 

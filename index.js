@@ -85,6 +85,10 @@ commerce.post("/orders", OrderController.createOrder);
 commerce.get("/orders", OrderController.getAllOrders);
 commerce.put("/orders/:orderId/status", OrderController.updateOrderStatus);
 commerce.get("/orders/user/:userId", OrderController.getOrdersByUser);
+commerce.put("/orders/:orderId/cancel", OrderController.cancelOrder);
+commerce.delete("/orders/:orderId", OrderController.deleteOrder);
+
+
 
 
 

@@ -63,3 +63,38 @@ exports.getOrdersByUser = async (req, res) => {
   }
 };
 
+// In OrderController.js
+exports.cancelOrder = async (req, res) => {
+  try {
+    const { orderId } = req.params;
+
+    const order = await Order.findById(orderId);
+    if (!order) {
+      return res.status(404).json({ message: "Order not found" });
+    }
+
+    if (order.status === "Delivered") {
+      return res.status(400).json({ message: "Delivered orders cannot be cancelled" });
+    }
+
+    order.status = "Cancelled";
+    await order.save();
+
+    res.json({ message: "Order cancelled successfully", order });
+  } catch (err) {
+    console.error("Error cancelling order:", err);
+    res.status(500).json({ message: "Failed to cancel order" });
+  }
+};
+exports.deleteOrder = async (req, res) => {
+  try {
+    const order = await Order.findByIdAndDelete(req.params.orderId);
+    if (!order) return res.status(404).json({ error: "Order not found" });
+    res.json({ message: "Order deleted successfully" });
+  } catch (err) {
+    console.error("Error deleting order:", err);
+    res.status(500).json({ error: "Failed to delete order" });
+  }
+};
+
+

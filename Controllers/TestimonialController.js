@@ -1,28 +1,32 @@
 import TestimonialModel from "../Models/TestimonialModel.js";
 
-// Add a new testimonial
-export const AddNewTestimonial = async (req, res) => {
+export const AddNewTestiminal = async (req, res) => {
   try {
-    const { name, text } = req.body;
-
-    if (!name || !text) {
-      return res.status(400).json({ message: "Name and text are required" });
+    let { name, text } = req.body;
+    if (!text) {
+      return res.status(400).json({ message: "Text is required" });
     }
 
-    const testimonial = new TestimonialModel({ name, text });
+    // Default name
+    if (!name || name.trim() === "") {
+      name = "Anonymous";
+    }
+
+    // Create testimonial (img will default if not given)
+    const testimonial = new TestimonialModel({
+      name,
+      text
+    });
+
     await testimonial.save();
 
-    res.status(201).json({
-      message: "Testimonial added successfully",
-      testimonial,
-    });
+    res.status(201).json({ message: "Testimonial added successfully", testimonial });
   } catch (error) {
     console.error("Error adding testimonial:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
 
-// Get all testimonials
 export const GetAllTestimonial = async (req, res) => {
   try {
     const testimonials = await TestimonialModel.find().sort({ createdAt: -1 });

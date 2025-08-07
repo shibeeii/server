@@ -2,6 +2,8 @@ const Razorpay = require("razorpay");
 const crypto = require("crypto");
 const Payment = require("../Models/PaymentModel");
 const Order = require("../Models/OrderModel");
+const User = require("../Models/UserModel");
+const sendEmail = require("../Utils/sendEmail");
 
 
 // Razorpay instance
@@ -48,7 +50,7 @@ exports.verifyPayment = async (req, res) => {
 
   if (generatedSignature === razorpay_signature) {
     try {
-      // Save payment info
+      // Save payment
       const payment = new Payment({
         userId,
         orderId: razorpay_order_id,
@@ -58,7 +60,7 @@ exports.verifyPayment = async (req, res) => {
       });
       await payment.save();
 
-      // Create order only after successful payment
+      // Create order
       const order = new Order({
         userId,
         items,
@@ -70,14 +72,31 @@ exports.verifyPayment = async (req, res) => {
       });
       await order.save();
 
-      res.status(200).json({ success: true, message: "Payment verified and order created" });
+      // 💌 Fetch user info and send email
+      const user = await User.findById(userId);
+      if (user) {
+        const emailHTML = `
+          <h2>Hi ${user.name},</h2>
+          <p>Thank you for your purchase! Your order <strong>#${order._id}</strong> has been successfully placed.</p>
+          <p><strong>Amount:</strong> ₹${amount}</p>
+          <p><strong>Status:</strong> ${order.status}</p>
+          <br>
+          <p>We'll notify you once it's shipped.</p>
+          <p>– E-Shop Team</p>
+        `;
+
+        await sendEmail(user.email, "Order Confirmation - E-Shop", emailHTML);
+      }
+
+      res.status(200).json({ success: true, message: "Payment verified, order created & email sent" });
     } catch (error) {
-      console.error("Error saving payment or order:", error);
-      res.status(500).json({ success: false, message: "Verification passed but DB save failed" });
+      console.error("Error saving payment/order or sending email:", error);
+      res.status(500).json({ success: false, message: "Payment successful, but an error occurred" });
     }
   } else {
     res.status(400).json({ success: false, message: "Invalid signature" });
   }
 };
+
 
 

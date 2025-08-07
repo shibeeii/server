@@ -50,7 +50,7 @@ exports.verifyPayment = async (req, res) => {
 
   if (generatedSignature === razorpay_signature) {
     try {
-      // Save payment
+      // ✅ Save payment
       const payment = new Payment({
         userId,
         orderId: razorpay_order_id,
@@ -60,7 +60,7 @@ exports.verifyPayment = async (req, res) => {
       });
       await payment.save();
 
-      // Create order
+      // ✅ Create order
       const order = new Order({
         userId,
         items,
@@ -72,9 +72,10 @@ exports.verifyPayment = async (req, res) => {
       });
       await order.save();
 
-      // 💌 Send email (but don't crash if email fails)
+      // ✅ Send email confirmation
       try {
         const user = await User.findById(userId);
+
         if (user) {
           const emailHTML = `
             <h2>Hi ${user.name},</h2>
@@ -83,9 +84,23 @@ exports.verifyPayment = async (req, res) => {
             <p><strong>Status:</strong> ${order.status}</p>
             <br>
             <p>We'll notify you once it's shipped.</p>
-            <p>– E-Shop Team</p>
+            <p>– Q-Mart Team</p>
           `;
-          await sendEmail(user.email, "Order Confirmation - E-Shop", emailHTML);
+
+          const plainText = `
+Hi ${user.name},
+
+Thank you for your purchase! Your order #${order._id} has been successfully placed.
+
+Amount: ₹${amount}
+Status: ${order.status}
+
+We'll notify you once it's shipped.
+
+– Q-Mart Team
+`;
+
+          await sendEmail(user.email, "Order Confirmation - Q-Mart", plainText, emailHTML);
           console.log("✅ Email sent to", user.email);
         }
       } catch (emailErr) {
@@ -102,6 +117,3 @@ exports.verifyPayment = async (req, res) => {
     res.status(400).json({ success: false, message: "Invalid signature" });
   }
 };
-
-
-

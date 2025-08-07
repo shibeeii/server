@@ -72,26 +72,31 @@ exports.verifyPayment = async (req, res) => {
       });
       await order.save();
 
-      // 💌 Fetch user info and send email
-      const user = await User.findById(userId);
-      if (user) {
-        const emailHTML = `
-          <h2>Hi ${user.name},</h2>
-          <p>Thank you for your purchase! Your order <strong>#${order._id}</strong> has been successfully placed.</p>
-          <p><strong>Amount:</strong> ₹${amount}</p>
-          <p><strong>Status:</strong> ${order.status}</p>
-          <br>
-          <p>We'll notify you once it's shipped.</p>
-          <p>– E-Shop Team</p>
-        `;
-
-        await sendEmail(user.email, "Order Confirmation - E-Shop", emailHTML);
+      // 💌 Send email (but don't crash if email fails)
+      try {
+        const user = await User.findById(userId);
+        if (user) {
+          const emailHTML = `
+            <h2>Hi ${user.name},</h2>
+            <p>Thank you for your purchase! Your order <strong>#${order._id}</strong> has been successfully placed.</p>
+            <p><strong>Amount:</strong> ₹${amount}</p>
+            <p><strong>Status:</strong> ${order.status}</p>
+            <br>
+            <p>We'll notify you once it's shipped.</p>
+            <p>– E-Shop Team</p>
+          `;
+          await sendEmail(user.email, "Order Confirmation - E-Shop", emailHTML);
+          console.log("✅ Email sent to", user.email);
+        }
+      } catch (emailErr) {
+        console.warn("⚠️ Failed to send email:", emailErr.message);
       }
 
-      res.status(200).json({ success: true, message: "Payment verified, order created & email sent" });
+      // ✅ Always return 200 if order saved
+      res.status(200).json({ success: true, message: "Payment verified, order saved" });
     } catch (error) {
-      console.error("Error saving payment/order or sending email:", error);
-      res.status(500).json({ success: false, message: "Payment successful, but an error occurred" });
+      console.error("❌ Failed to save payment or order:", error);
+      res.status(500).json({ success: false, message: "Something went wrong on server" });
     }
   } else {
     res.status(400).json({ success: false, message: "Invalid signature" });

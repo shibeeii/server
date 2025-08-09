@@ -6,7 +6,7 @@ exports.getAllOrders = async (req, res) => {
       .populate("userId", "name email")
       .populate({
         path: "items.productId",
-        model: "products", 
+        model: "products",
         select: "productname price image",
       })
       .sort({ createdAt: -1 });
@@ -20,7 +20,18 @@ exports.getAllOrders = async (req, res) => {
 
 exports.createOrder = async (req, res) => {
   try {
-    const newOrder = new Order(req.body);
+    const { userId, items, shippingAddress, amount, paymentMode, paymentId, orderId } = req.body;
+
+    const newOrder = new Order({
+      userId,
+      items,
+      shippingAddress,
+      amount,
+      paymentMode: paymentMode || "Razorpay", // ✅ Defaults if not provided
+      paymentId,
+      orderId
+    });
+
     await newOrder.save();
     res.status(201).json({ message: "Order placed successfully", order: newOrder });
   } catch (err) {
@@ -48,6 +59,7 @@ exports.updateOrderStatus = async (req, res) => {
     res.status(500).json({ error: "Failed to update order status" });
   }
 };
+
 exports.getOrdersByUser = async (req, res) => {
   try {
     const userId = req.params.userId;
@@ -59,7 +71,7 @@ exports.getOrdersByUser = async (req, res) => {
     const orders = await Order.find({ userId })
       .populate({
         path: "items.productId",
-        model: "products", // updated to match your model name
+        model: "products",
       })
       .sort({ createdAt: -1 });
 
@@ -70,7 +82,6 @@ exports.getOrdersByUser = async (req, res) => {
   }
 };
 
-// In OrderController.js
 exports.cancelOrder = async (req, res) => {
   try {
     const { orderId } = req.params;
@@ -93,6 +104,7 @@ exports.cancelOrder = async (req, res) => {
     res.status(500).json({ message: "Failed to cancel order" });
   }
 };
+
 exports.deleteOrder = async (req, res) => {
   try {
     const order = await Order.findByIdAndDelete(req.params.orderId);
@@ -103,5 +115,3 @@ exports.deleteOrder = async (req, res) => {
     res.status(500).json({ error: "Failed to delete order" });
   }
 };
-
-

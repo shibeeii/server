@@ -86,6 +86,8 @@ commerce.delete('/wishlist/clear/:userId', WishlistController.clearWishlist);
 // Razorpay Payment
 commerce.post("/api/payment/create-order", PaymentController.createOrder);
 commerce.post("/api/payment/verify", PaymentController.verifyPayment);
+commerce.post("/api/payment/cod", PaymentController.createCODOrder);
+
 
 commerce.post("/orders", OrderController.createOrder);
 commerce.get("/orders", OrderController.getAllOrders);

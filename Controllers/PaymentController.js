@@ -5,11 +5,10 @@ const Order = require("../Models/OrderModel");
 const User = require("../Models/UserModel");
 const sendEmail = require("../Utils/sendEmail");
 
-
 // Razorpay instance
 const razorpay = new Razorpay({
   key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET, // make sure this matches your .env
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
 
 // ➕ Create Order
@@ -17,7 +16,7 @@ exports.createOrder = async (req, res) => {
   const { amount } = req.body;
 
   const options = {
-    amount: amount * 100, // amount in paise
+    amount: amount * 100,
     currency: "INR",
     receipt: "receipt_" + Date.now(),
   };
@@ -31,7 +30,7 @@ exports.createOrder = async (req, res) => {
   }
 };
 
-
+// ✅ Verify Razorpay Payment
 exports.verifyPayment = async (req, res) => {
   const {
     razorpay_order_id,
@@ -57,6 +56,7 @@ exports.verifyPayment = async (req, res) => {
         paymentId: razorpay_payment_id,
         signature: razorpay_signature,
         amount,
+        paymentMode: "Razorpay", // added payment mode
       });
       await payment.save();
 
@@ -69,13 +69,14 @@ exports.verifyPayment = async (req, res) => {
         status: "Processing",
         paymentId: razorpay_payment_id,
         orderId: razorpay_order_id,
+        paymentMode: "Razorpay", // added payment mode
+        paymentStatus: "Paid",
       });
       await order.save();
 
       // ✅ Send email confirmation
       try {
         const user = await User.findById(userId);
-
         if (user) {
           const emailHTML = `
             <h2>Hi ${user.name},</h2>
@@ -86,7 +87,6 @@ exports.verifyPayment = async (req, res) => {
             <p>We'll notify you once it's shipped.</p>
             <p>– Q-Mart Team</p>
           `;
-
           const plainText = `
 Hi ${user.name},
 
@@ -99,7 +99,6 @@ We'll notify you once it's shipped.
 
 – Q-Mart Team
 `;
-
           await sendEmail(user.email, "Order Confirmation - Q-Mart", plainText, emailHTML);
           console.log("✅ Email sent to", user.email);
         }
@@ -107,7 +106,6 @@ We'll notify you once it's shipped.
         console.warn("⚠️ Failed to send email:", emailErr.message);
       }
 
-      // ✅ Always return 200 if order saved
       res.status(200).json({ success: true, message: "Payment verified, order saved" });
     } catch (error) {
       console.error("❌ Failed to save payment or order:", error);
@@ -117,3 +115,39 @@ We'll notify you once it's shipped.
     res.status(400).json({ success: false, message: "Invalid signature" });
   }
 };
+
+exports.createCODOrder = async (req, res) => {
+  const { userId, amount, items, shippingAddress } = req.body;
+
+  console.log("COD Order Payload:", req.body); // Add this to debug payload
+
+  try {
+    const order = new Order({
+      userId,
+      items,
+      shippingAddress,
+      amount,
+      status: "Processing",
+      paymentMode: "COD",
+      paymentStatus: "Pending", // COD not paid yet
+    });
+
+    await order.save();
+
+    // Send confirmation email (optional)
+    try {
+      const user = await User.findById(userId);
+      if (user) {
+        // Compose and send email here...
+      }
+    } catch (emailErr) {
+      console.warn("Failed to send COD email:", emailErr.message);
+    }
+
+    res.status(200).json({ success: true, message: "COD order placed", order });
+  } catch (error) {
+    console.error("Failed to create COD order:", error);
+    res.status(500).json({ success: false, message: "Something went wrong on server" });
+  }
+};
+

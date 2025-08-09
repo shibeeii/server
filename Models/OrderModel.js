@@ -4,7 +4,7 @@ const OrderSchema = new mongoose.Schema({
   userId: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
   items: [
     {
-      productId: { type: mongoose.Schema.Types.ObjectId, ref: "Product", required: true },
+      productId: { type: mongoose.Schema.Types.ObjectId, ref: "products", required: true },
       quantity: { type: Number, required: true },
       price: { type: Number, required: true },
     },
@@ -18,6 +18,16 @@ const OrderSchema = new mongoose.Schema({
     pincode: String,
   },
   amount: { type: Number, required: true },
+  paymentMode: {
+    type: String,
+    enum: ["Razorpay", "COD", "Other"],
+    default: "Razorpay",
+  },
+  paymentStatus: {
+    type: String,
+    enum: ["Pending", "Paid", "Failed"],
+    default: "Pending",
+  },
   status: { type: String, default: "Processing" },
   paymentId: String,
   orderId: String,
@@ -25,4 +35,4 @@ const OrderSchema = new mongoose.Schema({
 });
 
 const Order = mongoose.model("Order", OrderSchema);
-module.exports = Order; // ✅ Capital "O"
+module.exports = Order;

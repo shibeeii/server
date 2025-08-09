@@ -115,3 +115,25 @@ exports.deleteOrder = async (req, res) => {
     res.status(500).json({ error: "Failed to delete order" });
   }
 };
+
+// In OrderController.js
+
+exports.returnOrder = async (req, res) => {
+  const { orderId } = req.params;
+
+  try {
+    const order = await Order.findById(orderId);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    if (order.status === "Delivered") {
+      order.status = "Returned";
+      await order.save();
+      return res.json({ message: "Order returned successfully", order });
+    } else {
+      return res.status(400).json({ message: "Only delivered orders can be returned" });
+    }
+  } catch (error) {
+    console.error("Error returning order:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};

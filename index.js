@@ -96,6 +96,7 @@ commerce.get("/orders/user/:userId", OrderController.getOrdersByUser);
 commerce.put("/orders/:orderId/cancel", OrderController.cancelOrder);
 commerce.delete("/orders/:orderId", OrderController.deleteOrder);
 commerce.put("/orders/return/:orderId", OrderController.returnOrder);
+commerce.put("/orders/:orderId/items/:itemId/return",OrderController.returnOrderItem);
 
 
 

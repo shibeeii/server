@@ -168,3 +168,56 @@ Thank you for shopping with Q-Mart.
   }
 };
 
+exports.returnOrderItem = async (req, res) => {
+  const { orderId, itemId } = req.params;
+
+  try {
+    const order = await Order.findById(orderId);
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    // Find the item in the order
+    const item = order.items.id(itemId);
+    if (!item) return res.status(404).json({ message: "Order item not found" });
+
+    // Only allow return if item status is Delivered (or a similar check)
+    if (item.status !== "Delivered") {
+      return res.status(400).json({ message: "Only delivered items can be returned" });
+    }
+
+    // Update item status to Returned
+    item.status = "Returned";
+
+    await order.save();
+
+    // Optional: Send email notification about this returned item
+    try {
+      const user = await User.findById(order.userId);
+      if (user) {
+        const emailHTML = `
+          <h2>Hi ${user.name},</h2>
+          <p>Your return request for product <strong>${item.productId.productname || "an item"}</strong> in order <strong>#${order._id}</strong> has been received.</p>
+          <p>We will process your return shortly.</p>
+          <p>Thank you for shopping with Q-Mart.</p>
+        `;
+        const plainText = `
+Hi ${user.name},
+
+Your return request for product ${item.productId.productname || "an item"} in order #${order._id} has been received.
+
+We will process your return shortly.
+
+Thank you for shopping with Q-Mart.
+        `;
+
+        await sendEmail(user.email, "Return Request Received - Q-Mart", plainText, emailHTML);
+      }
+    } catch (emailError) {
+      console.warn("Failed to send return confirmation email:", emailError.message);
+    }
+
+    res.json({ message: "Order item returned successfully", order });
+  } catch (error) {
+    console.error("Error returning order item:", error);
+    res.status(500).json({ message: "Server error" });
+  }
+};

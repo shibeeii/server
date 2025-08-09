@@ -20,13 +20,18 @@ exports.Addproducts = async (req, res) => {
 
 exports.getAllProducts = async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 8;
+    const limit = parseInt(req.query.limit) || 6;
     const offset = parseInt(req.query.offset) || 0;
-    const category = req.query.category;
+    const search = req.query.search || "";
 
     const filter = {};
-    if (category) {
-      filter.category = category; // Or regex if partial match
+
+    if (search) {
+      filter.$or = [
+        { productname: { $regex: search, $options: "i" } },
+        { category: { $regex: search, $options: "i" } },
+        { description: { $regex: search, $options: "i" } }
+      ];
     }
 
     const products = await Products.find(filter)
@@ -37,10 +42,13 @@ exports.getAllProducts = async (req, res) => {
 
     res.json({ products, total });
   } catch (err) {
-    console.error("Error in getAllProducts:", err);
-    res.status(500).json({ error: "Failed to fetch products" });
+    console.error("Error fetching products:", err);
+    res.status(500).json({ error: "Server error" });
   }
 };
+
+
+
 
 
 

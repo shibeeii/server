@@ -119,7 +119,7 @@ We'll notify you once it's shipped.
 exports.createCODOrder = async (req, res) => {
   const { userId, amount, items, shippingAddress } = req.body;
 
-  console.log("COD Order Payload:", req.body); // Add this to debug payload
+  console.log("COD Order Payload:", req.body); // debug
 
   try {
     const order = new Order({
@@ -129,16 +129,47 @@ exports.createCODOrder = async (req, res) => {
       amount,
       status: "Processing",
       paymentMode: "COD",
-      paymentStatus: "Pending", // COD not paid yet
+      paymentStatus: "Pending",
     });
 
     await order.save();
 
-    // Send confirmation email (optional)
+    // Send confirmation email
     try {
       const user = await User.findById(userId);
-      if (user) {
-        // Compose and send email here...
+      if (user && user.email) {
+        // Compose email content
+        const itemList = items.map(
+          (item) => `
+          <li>
+            ${item.productId?.productname || "Product"} - Quantity: ${item.quantity} - Price: ₹${item.price}
+          </li>`
+        ).join("");
+
+        const emailContent = `
+          <h3>Order Confirmation</h3>
+          <p>Hi ${user.name || "Customer"},</p>
+          <p>Thank you for placing your order with us! Here are your order details:</p>
+          <ul>
+            ${itemList}
+          </ul>
+          <p><strong>Total Amount:</strong> ₹${amount}</p>
+          <p><strong>Payment Mode:</strong> Cash on Delivery (COD)</p>
+          <p><strong>Shipping Address:</strong></p>
+          <p>
+            ${shippingAddress.fullName}<br />
+            ${shippingAddress.addressLine}, ${shippingAddress.city}, ${shippingAddress.state} - ${shippingAddress.pincode}<br />
+            Phone: ${shippingAddress.phone}
+          </p>
+          <p>Your order status is currently <strong>Processing</strong>. We will update you once your order is shipped.</p>
+          <p>Thank you for shopping with us!</p>
+        `;
+
+        await sendEmail({
+          to: user.email,
+          subject: "Order Confirmation - Your COD Order",
+          html: emailContent,
+        });
       }
     } catch (emailErr) {
       console.warn("Failed to send COD email:", emailErr.message);

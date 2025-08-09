@@ -1,4 +1,7 @@
 const Order = require("../Models/OrderModel");
+const sendEmail = require("../Utils/sendEmail");
+const User = require("../Models/UserModel");
+
 
 exports.getAllOrders = async (req, res) => {
   try {
@@ -116,7 +119,7 @@ exports.deleteOrder = async (req, res) => {
   }
 };
 
-// In OrderController.js
+
 
 exports.returnOrder = async (req, res) => {
   const { orderId } = req.params;
@@ -128,6 +131,33 @@ exports.returnOrder = async (req, res) => {
     if (order.status === "Delivered") {
       order.status = "Returned";
       await order.save();
+
+      // Send return confirmation email
+      try {
+        const user = await User.findById(order.userId);
+        if (user) {
+          const emailHTML = `
+            <h2>Hi ${user.name},</h2>
+            <p>Your return request for order <strong>#${order._id}</strong> has been successfully received.</p>
+            <p>Our team will review your return and get back to you soon.</p>
+            <p>Thank you for shopping with Q-Mart.</p>
+          `;
+          const plainText = `
+Hi ${user.name},
+
+Your return request for order #${order._id} has been successfully received.
+
+Our team will review your return and get back to you soon.
+
+Thank you for shopping with Q-Mart.
+          `;
+
+          await sendEmail(user.email, "Return Request Received - Q-Mart", plainText, emailHTML);
+        }
+      } catch (emailError) {
+        console.warn("Failed to send return confirmation email:", emailError.message);
+      }
+
       return res.json({ message: "Order returned successfully", order });
     } else {
       return res.status(400).json({ message: "Only delivered orders can be returned" });
@@ -137,3 +167,4 @@ exports.returnOrder = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+

@@ -104,11 +104,13 @@ exports.verifyPayment = async (req, res) => {
           <p><strong>Status:</strong> Paid</p>
         `;
 
-        await sendEmail({
-          to: user.email,
-          subject: "Payment Successful - Order Confirmation",
-          html: emailContent,
-        });
+       await sendEmail(
+  user.email,
+  "Payment Successful - Order Confirmation",
+  `Hi ${user.name}, your payment has been verified and order placed successfully. Total: ₹${amount}`,
+  emailContent
+);
+
       }
     } catch (emailErr) {
       console.warn("⚠️ Failed to send email:", emailErr.message);
@@ -171,11 +173,13 @@ exports.createCODOrder = async (req, res) => {
           <p><strong>Status:</strong> Processing</p>
         `;
 
-        await sendEmail({
-          to: user.email,
-          subject: "COD Order Confirmation",
-          html: emailContent,
-        });
+        await sendEmail(
+  user.email,
+  "COD Order Confirmation",
+  `Hi ${user.name}, your COD order has been placed successfully. Total: ₹${amount}`,
+  emailContent
+);
+
       }
     } catch (emailErr) {
       console.warn("⚠️ Failed to send COD email:", emailErr.message);

@@ -30,91 +30,82 @@ exports.createOrder = async (req, res) => {
   }
 };
 
-// ✅ Verify Razorpay Payment
 exports.verifyPayment = async (req, res) => {
-  const {
-    razorpay_order_id,
-    razorpay_payment_id,
-    razorpay_signature,
-    userId,
-    amount,
-    items,
-    shippingAddress,
-  } = req.body;
+  try {
+    const {
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      userId,
+      amount,
+      items,
+      shippingAddress,
+    } = req.body;
 
-  const generatedSignature = crypto
-    .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-    .update(`${razorpay_order_id}|${razorpay_payment_id}`)
-    .digest("hex");
+    console.log("🔍 Verify request payload:", req.body);
 
-  if (generatedSignature === razorpay_signature) {
-    try {
-      // ✅ Save payment
-      const payment = new Payment({
-        userId,
-        orderId: razorpay_order_id,
-        paymentId: razorpay_payment_id,
-        signature: razorpay_signature,
-        amount,
-        paymentMode: "Razorpay", // added payment mode
-      });
-      await payment.save();
-
-      // ✅ Create order
-      const order = new Order({
-        userId,
-        items,
-        shippingAddress,
-        amount,
-        status: "Processing",
-        paymentId: razorpay_payment_id,
-        orderId: razorpay_order_id,
-        paymentMode: "Razorpay", // added payment mode
-        paymentStatus: "Paid",
-      });
-      await order.save();
-
-      // ✅ Send email confirmation
-      try {
-        const user = await User.findById(userId);
-        if (user) {
-          const emailHTML = `
-            <h2>Hi ${user.name},</h2>
-            <p>Thank you for your purchase! Your order <strong>#${order._id}</strong> has been successfully placed.</p>
-            <p><strong>Amount:</strong> ₹${amount}</p>
-            <p><strong>Status:</strong> ${order.status}</p>
-            <br>
-            <p>We'll notify you once it's shipped.</p>
-            <p>– Q-Mart Team</p>
-          `;
-          const plainText = `
-Hi ${user.name},
-
-Thank you for your purchase! Your order #${order._id} has been successfully placed.
-
-Amount: ₹${amount}
-Status: ${order.status}
-
-We'll notify you once it's shipped.
-
-– Q-Mart Team
-`;
-          await sendEmail(user.email, "Order Confirmation - Q-Mart", plainText, emailHTML);
-          console.log("✅ Email sent to", user.email);
-        }
-      } catch (emailErr) {
-        console.warn("⚠️ Failed to send email:", emailErr.message);
-      }
-
-      res.status(200).json({ success: true, message: "Payment verified, order saved" });
-    } catch (error) {
-      console.error("❌ Failed to save payment or order:", error);
-      res.status(500).json({ success: false, message: "Something went wrong on server" });
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
+      return res.status(400).json({ success: false, message: "Missing Razorpay payment fields" });
     }
-  } else {
-    res.status(400).json({ success: false, message: "Invalid signature" });
+
+    if (!process.env.RAZORPAY_KEY_SECRET) {
+      return res.status(500).json({ success: false, message: "Razorpay key secret missing in server env" });
+    }
+
+    const body = `${razorpay_order_id}|${razorpay_payment_id}`;
+    const expectedSignature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+      .update(body)
+      .digest("hex");
+
+    console.log("✅ Expected Signature:", expectedSignature);
+    console.log("✅ Received Signature:", razorpay_signature);
+
+    if (expectedSignature !== razorpay_signature) {
+      return res.status(400).json({ success: false, message: "Invalid signature" });
+    }
+
+    // Save payment
+    const payment = await Payment.create({
+      razorpay_order_id,
+      razorpay_payment_id,
+      razorpay_signature,
+      amount,
+      userId,
+      status: "Paid",
+    });
+
+    // Save order
+    const order = await Order.create({
+      userId,
+      items,
+      shippingAddress,
+      amount,
+      paymentMode: "Razorpay",
+      paymentStatus: "Paid",
+      status: "Processing",
+      paymentId: razorpay_payment_id,
+      orderId: razorpay_order_id,
+    });
+
+    console.log("✅ Order created:", order._id);
+
+    return res.json({
+      success: true,
+      message: "Payment verified successfully",
+      order,
+    });
+  } catch (error) {
+    console.error("❌ Verify Payment Error:", error); // <--- log full error
+    return res.status(500).json({
+      success: false,
+      message: error.message || "Something went wrong on server",
+    });
   }
 };
+
+
+
 
 exports.createCODOrder = async (req, res) => {
   const { userId, amount, items, shippingAddress } = req.body;

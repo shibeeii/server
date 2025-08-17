@@ -48,15 +48,20 @@ exports.updateOrderStatus = async (req, res) => {
   const { status } = req.body;
 
   try {
-    const updatedOrder = await Order.findByIdAndUpdate(
-      orderId,
-      { status },
-      { new: true }
-    );
+    const order = await Order.findById(orderId);
+    if (!order) return res.status(404).json({ error: "Order not found" });
 
-    if (!updatedOrder) return res.status(404).json({ error: "Order not found" });
+    order.status = status;
 
-    res.json({ message: "Order status updated", order: updatedOrder });
+    // ✅ If whole order delivered → mark all items as delivered
+    if (status === "Delivered") {
+      order.items.forEach(item => {
+        item.status = "Delivered";
+      });
+    }
+
+    await order.save();
+    res.json({ message: "Order status updated", order });
   } catch (err) {
     console.error("Error updating order:", err);
     res.status(500).json({ error: "Failed to update order status" });
@@ -128,40 +133,32 @@ exports.returnOrder = async (req, res) => {
     const order = await Order.findById(orderId);
     if (!order) return res.status(404).json({ message: "Order not found" });
 
-    if (order.status === "Delivered") {
-      order.status = "Returned";
-      await order.save();
-
-      // Send return confirmation email
-      try {
-        const user = await User.findById(order.userId);
-        if (user) {
-          const emailHTML = `
-            <h2>Hi ${user.name},</h2>
-            <p>Your return request for order <strong>#${order._id}</strong> has been successfully received.</p>
-            <p>Our team will review your return and get back to you soon.</p>
-            <p>Thank you for shopping with Q-Mart.</p>
-          `;
-          const plainText = `
-Hi ${user.name},
-
-Your return request for order #${order._id} has been successfully received.
-
-Our team will review your return and get back to you soon.
-
-Thank you for shopping with Q-Mart.
-          `;
-
-          await sendEmail(user.email, "Return Request Received - Q-Mart", plainText, emailHTML);
-        }
-      } catch (emailError) {
-        console.warn("Failed to send return confirmation email:", emailError.message);
-      }
-
-      return res.json({ message: "Order returned successfully", order });
-    } else {
+    if (order.status !== "Delivered") {
       return res.status(400).json({ message: "Only delivered orders can be returned" });
     }
+
+    // ✅ Update order + all items
+    order.status = "Returned";
+    order.items.forEach(item => {
+      item.status = "Returned";
+    });
+
+    await order.save();
+
+    // send email to user
+    const user = await User.findById(order.userId);
+    if (user) {
+      const emailHTML = `
+        <h2>Hi ${user.name},</h2>
+        <p>Your return request for order <strong>#${order._id}</strong> has been successfully received.</p>
+        <p>Our team will review your return and get back to you soon.</p>
+        <p>Thank you for shopping with Q-Mart.</p>
+      `;
+      const plainText = `Hi ${user.name},\n\nYour return request for order #${order._id} has been successfully received.\n\nThank you for shopping with Q-Mart.`;
+      await sendEmail(user.email, "Return Request Received - Q-Mart", plainText, emailHTML);
+    }
+
+    res.json({ message: "Order returned successfully", order });
   } catch (error) {
     console.error("Error returning order:", error);
     res.status(500).json({ message: "Server error" });
@@ -173,22 +170,39 @@ exports.returnOrderItem = async (req, res) => {
   const { orderId, itemId } = req.params;
 
   try {
-    const order = await Order.findById(orderId);
+    const order = await Order.findById(orderId).populate("items.productId", "productname");
     if (!order) return res.status(404).json({ message: "Order not found" });
 
     const item = order.items.id(itemId);
     if (!item) return res.status(404).json({ message: "Order item not found" });
 
-    console.log(`Item status: ${item.status}`);
-
-    if ((item.status || "").toLowerCase() !== "delivered") {
+    if (item.status !== "Delivered") {
       return res.status(400).json({ message: "Only delivered items can be returned" });
     }
 
+    // ✅ Update item
     item.status = "Returned";
+
+    // ✅ If all items returned → mark whole order as Returned
+    if (order.items.every(i => i.status === "Returned")) {
+      order.status = "Returned";
+    }
+
     await order.save();
 
-    // ... rest of email & response
+    // send email to user
+    const user = await User.findById(order.userId);
+    if (user) {
+      const emailHTML = `
+        <h2>Hi ${user.name},</h2>
+        <p>Your return request for product <strong>${item.productId?.productname || "item"}</strong> 
+        in order <strong>#${order._id}</strong> has been successfully received.</p>
+        <p>Our team will review your return and get back to you soon.</p>
+        <p>Thank you for shopping with Q-Mart.</p>
+      `;
+      const plainText = `Hi ${user.name},\n\nYour return request for a product in order #${order._id} has been successfully received.\n\nThank you for shopping with Q-Mart.`;
+      await sendEmail(user.email, "Return Request Received - Q-Mart", plainText, emailHTML);
+    }
 
     res.json({ message: "Order item returned successfully", order });
   } catch (error) {
@@ -196,4 +210,6 @@ exports.returnOrderItem = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+
 

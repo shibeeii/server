@@ -40,69 +40,51 @@ exports.verifyPayment = async (req, res) => {
       amount,
       items,
       shippingAddress,
+      paymentMode, // <-- add this from frontend
     } = req.body;
 
-    console.log("🔍 Verify request payload:", req.body);
-
-    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature) {
-      return res.status(400).json({ success: false, message: "Missing Razorpay payment fields" });
-    }
-
-    if (!process.env.RAZORPAY_KEY_SECRET) {
-      return res.status(500).json({ success: false, message: "Razorpay key secret missing in server env" });
-    }
-
-    const body = `${razorpay_order_id}|${razorpay_payment_id}`;
-    const expectedSignature = crypto
+    // Generate signature for validation
+    const generatedSignature = crypto
       .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-      .update(body)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest("hex");
 
-    console.log("✅ Expected Signature:", expectedSignature);
-    console.log("✅ Received Signature:", razorpay_signature);
-
-    if (expectedSignature !== razorpay_signature) {
+    if (generatedSignature !== razorpay_signature) {
       return res.status(400).json({ success: false, message: "Invalid signature" });
     }
 
-    // Save payment
+    // ✅ Save Payment
     const payment = await Payment.create({
-      razorpay_order_id,
-      razorpay_payment_id,
-      razorpay_signature,
+      orderId: razorpay_order_id,
+      paymentId: razorpay_payment_id,
+      signature: razorpay_signature,
       amount,
       userId,
-      status: "Paid",
+      status: "success", // enum allows "success" | "failed"
+      paymentMode: paymentMode || "UPI", // fallback if not provided
     });
 
-    // Save order
+    // ✅ Save Order (if you’re linking with Order model)
     const order = await Order.create({
       userId,
       items,
-      shippingAddress,
       amount,
-      paymentMode: "Razorpay",
-      paymentStatus: "Paid",
-      status: "Processing",
-      paymentId: razorpay_payment_id,
-      orderId: razorpay_order_id,
+      shippingAddress,
+      paymentId: payment._id,
+      status: "Confirmed",
     });
 
-    console.log("✅ Order created:", order._id);
-
-    return res.json({
+    res.json({
       success: true,
       message: "Payment verified successfully",
       order,
     });
-  } catch (error) {
-    console.error("❌ Verify Payment Error:", error); // <--- log full error
-    return res.status(500).json({
-      success: false,
-      message: error.message || "Something went wrong on server",
-    });
+  } catch (err) {
+    console.error("❌ Verification Error:", err);
+    res.status(500).json({ success: false, message: "Something went wrong on server" });
   }
 };
+
 
 
 

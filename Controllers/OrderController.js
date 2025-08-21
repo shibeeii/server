@@ -171,7 +171,7 @@ exports.returnOrderItem = async (req, res) => {
   const { reason } = req.body;
 
   try {
-    const order = await Order.findById(orderId).populate("items.productId", "productname");
+    let order = await Order.findById(orderId).populate("items.productId", "productname image price");
     if (!order) return res.status(404).json({ message: "Order not found" });
 
     const item = order.items.id(itemId);
@@ -191,12 +191,22 @@ exports.returnOrderItem = async (req, res) => {
 
     await order.save();
 
+    // 🔑 Re-fetch with population so frontend gets full details
+    order = await Order.findById(orderId)
+      .populate("userId", "name email")
+      .populate({
+        path: "items.productId",
+        model: "products",
+        select: "productname price image",
+      });
+
     res.json({ message: "Order item returned successfully", order });
   } catch (error) {
     console.error("Error returning order item:", error);
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 
 

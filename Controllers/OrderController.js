@@ -168,6 +168,7 @@ exports.returnOrder = async (req, res) => {
 
 exports.returnOrderItem = async (req, res) => {
   const { orderId, itemId } = req.params;
+  const { reason } = req.body;
 
   try {
     const order = await Order.findById(orderId).populate("items.productId", "productname");
@@ -180,29 +181,15 @@ exports.returnOrderItem = async (req, res) => {
       return res.status(400).json({ message: "Only delivered items can be returned" });
     }
 
-    // ✅ Update item
+    // ✅ Update item with reason
     item.status = "Returned";
+    item.returnReason = reason || "Not specified";
 
-    // ✅ If all items returned → mark whole order as Returned
     if (order.items.every(i => i.status === "Returned")) {
       order.status = "Returned";
     }
 
     await order.save();
-
-    // send email to user
-    const user = await User.findById(order.userId);
-    if (user) {
-      const emailHTML = `
-        <h2>Hi ${user.name},</h2>
-        <p>Your return request for product <strong>${item.productId?.productname || "item"}</strong> 
-        in order <strong>#${order._id}</strong> has been successfully received.</p>
-        <p>Our team will review your return and get back to you soon.</p>
-        <p>Thank you for shopping with Q-Mart.</p>
-      `;
-      const plainText = `Hi ${user.name},\n\nYour return request for a product in order #${order._id} has been successfully received.\n\nThank you for shopping with Q-Mart.`;
-      await sendEmail(user.email, "Return Request Received - Q-Mart", plainText, emailHTML);
-    }
 
     res.json({ message: "Order item returned successfully", order });
   } catch (error) {
@@ -210,6 +197,7 @@ exports.returnOrderItem = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
 
 
 

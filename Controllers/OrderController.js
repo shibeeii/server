@@ -2,7 +2,7 @@ const Order = require("../Models/OrderModel");
 const sendEmail = require("../Utils/sendEmail");
 const User = require("../Models/UserModel");
 
-
+// 📌 Get all orders
 exports.getAllOrders = async (req, res) => {
   try {
     const orders = await Order.find()
@@ -21,6 +21,7 @@ exports.getAllOrders = async (req, res) => {
   }
 };
 
+// 📌 Create order
 exports.createOrder = async (req, res) => {
   try {
     const { userId, items, shippingAddress, amount, paymentMode, paymentId, orderId } = req.body;
@@ -30,7 +31,7 @@ exports.createOrder = async (req, res) => {
       items,
       shippingAddress,
       amount,
-      paymentMode: paymentMode || "Razorpay", // ✅ Defaults if not provided
+      paymentMode: paymentMode || "Razorpay",
       paymentId,
       orderId
     });
@@ -43,6 +44,7 @@ exports.createOrder = async (req, res) => {
   }
 };
 
+// 📌 Update order status
 exports.updateOrderStatus = async (req, res) => {
   const { orderId } = req.params;
   const { status } = req.body;
@@ -68,6 +70,7 @@ exports.updateOrderStatus = async (req, res) => {
   }
 };
 
+// 📌 Get orders by user
 exports.getOrdersByUser = async (req, res) => {
   try {
     const userId = req.params.userId;
@@ -90,6 +93,7 @@ exports.getOrdersByUser = async (req, res) => {
   }
 };
 
+// 📌 Cancel order
 exports.cancelOrder = async (req, res) => {
   try {
     const { orderId } = req.params;
@@ -113,6 +117,7 @@ exports.cancelOrder = async (req, res) => {
   }
 };
 
+// 📌 Delete order
 exports.deleteOrder = async (req, res) => {
   try {
     const order = await Order.findByIdAndDelete(req.params.orderId);
@@ -124,8 +129,7 @@ exports.deleteOrder = async (req, res) => {
   }
 };
 
-
-
+// 📌 Return entire order
 exports.returnOrder = async (req, res) => {
   const { orderId } = req.params;
 
@@ -145,7 +149,7 @@ exports.returnOrder = async (req, res) => {
 
     await order.save();
 
-    // send email to user
+    // 📧 Send email
     const user = await User.findById(order.userId);
     if (user) {
       const emailHTML = `
@@ -155,6 +159,7 @@ exports.returnOrder = async (req, res) => {
         <p>Thank you for shopping with Q-Mart.</p>
       `;
       const plainText = `Hi ${user.name},\n\nYour return request for order #${order._id} has been successfully received.\n\nThank you for shopping with Q-Mart.`;
+
       await sendEmail(user.email, "Return Request Received - Q-Mart", plainText, emailHTML);
     }
 
@@ -165,7 +170,7 @@ exports.returnOrder = async (req, res) => {
   }
 };
 
-
+// 📌 Return single order item
 exports.returnOrderItem = async (req, res) => {
   const { orderId, itemId } = req.params;
   const { reason } = req.body;
@@ -191,7 +196,22 @@ exports.returnOrderItem = async (req, res) => {
 
     await order.save();
 
-    // 🔑 Re-fetch with population so frontend gets full details
+    // 📧 Send email
+    const user = await User.findById(order.userId);
+    if (user) {
+      const emailHTML = `
+        <h2>Hi ${user.name},</h2>
+        <p>Your return request for item <strong>${item.productId.productname}</strong> (Order #${order._id}) has been successfully received.</p>
+        <p>Reason: ${item.returnReason}</p>
+        <p>Our team will review your return and get back to you soon.</p>
+        <p>Thank you for shopping with Q-Mart.</p>
+      `;
+      const plainText = `Hi ${user.name},\n\nYour return request for item ${item.productId.productname} (Order #${order._id}) has been successfully received.\nReason: ${item.returnReason}\n\nThank you for shopping with Q-Mart.`;
+
+      await sendEmail(user.email, "Return Request Received - Q-Mart", plainText, emailHTML);
+    }
+
+    // 🔑 Re-fetch with population
     order = await Order.findById(orderId)
       .populate("userId", "name email")
       .populate({
@@ -206,8 +226,3 @@ exports.returnOrderItem = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
-
-
-
-
-
